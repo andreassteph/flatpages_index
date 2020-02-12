@@ -27,6 +27,33 @@ def linklist_dict_lists(filelists):
 def my_url(name):
     return name
 
+
+def hello_world(page):
+    return "Hello Workd for "+page.meta["title"]
+
+
+
+def load_linklists(page,page_url_for,fpi):
+    file_url_for=page_url_for #change this if different url_for for files is needed
+    abspath = pjoin(fpi.config("root"),page.meta["dirpath"])
+        
+    page.meta["breadcrumbs"]=list(page_to_link(fpi.breadcrumbs(page.path),page_url_for))
+    if (page.meta.get("has_img",False) ):
+       page.meta["list_images"] = list(file_to_link(list_dir_img(abspath), page_url_for))
+    if page.meta["is_index"] or page.meta.get("has_files",False):
+       # List all non *.md files within the directory
+       list_dir_md=partial(list_dir, not_ext=[fpi.config("EXTENSION"),"~"])
+       page.meta["list_files"] = list(file_to_link(list_dir_md(abspath), file_url_for))
+    if page.meta.get("is_index",False):
+       page.meta["sub_pages"] = list(page_to_link(fpi.get_sub_pages(page), page_url_for))
+       page.meta["sub_index_pages"] = list(page_to_link(fpi.get_sub_ipages(page), page_url_for))
+
+    return page
+
+
+
+
+
 class FlatPagesIndex(FlatPages):
 
     def __init__(self,app=None,name=None):
@@ -34,30 +61,27 @@ class FlatPagesIndex(FlatPages):
         self.key_pages={}
         super(FlatPagesIndex, self).__init__(app=app, name=name)
 
-    @staticmethod
-    def get_breadcrumb_paths(path):
+    # load breadcrumbs for a page
+    def breadcrumbs(self, path):
         """
-        breadcrumbs decompose the path
-        a/b/index -> [a/index a/b/index]
+          Parse a path or the path of a page into breadcrumbs
+          breadcrumbs decompose the path
+          a/b/index -> [a/index a/b/index]
         """
-        elements = path.split('/')
-#        print "i: %s" % elements
 
-        elements2 = ['index']
-        if len(elements)>2:
-            for i in range(1,len(elements)):
-#                print "i: %s" % elements[0:i]
-                elements2.append(pjoin2(elements[0:i])+u'/index')
+        if not type(path) is str:
+            raise Error( "Argument must be a string i.e. a path")
+
+        path_elements = path.split('/')
+        elements2 = [self.get('index')]
+        if len(path_elements)>=2:
+            for i in range(1,len(path_elements)):
+                elements2.append(self.get(pjoin2(path_elements[0:i])+u'/index'))
         return elements2
+        
 
 
-    def breadcrumbs(self, page):
-        "Parse a path or the path of a page into breadcrumbs"
-        if type(page) is flask_flatpages.Page:
-            return self.get_pages( FlatPagesIndex.get_breadcrumb_paths(page.path))
-        else:
-            return self.get_pages(FlatPagesIndex.get_breadcrumb_paths(page))
-
+    # gets flatpages for an array of paths
     def get_pages(self, paths):
         "get pages for a list of paths"
         if paths is None:
@@ -65,9 +89,6 @@ class FlatPagesIndex(FlatPages):
         return (self.get(p) for p in paths)
 
         
-    @staticmethod
-    def get_paths(pages):
-        return (p.path for p in pages)
 
     # creates a directory based on key metadata that can be added to pages
     @cached_property
@@ -85,12 +106,13 @@ class FlatPagesIndex(FlatPages):
 
     def get_by_key(self,k):
         return self._key_pages.get(k,None)
+
     @cached_property
     def _pages(self):
         d=super(FlatPagesIndex,self)._pages
         for path in d:
             d[path]=self.page_defaults(d[path])
-                        
+
         return d
 
 
@@ -153,26 +175,10 @@ class FlatPagesIndex(FlatPages):
         if page ==None:
             path=pjoin(path,"index")
             page = super(self.__class__,self).get(path) # try to load index page
+        # patch page objects
+        if not page == None:
+            page.helloworld= hello_world.__get__(page)
+            page.load_linklists=partial(load_linklists.__get__(page),fpi=self) # add load_linklists to page
+            #            page.breadcrumbs=self.breadcrumbs(page.path)
         return  page
-    def fpget(self,name):
-        return self.get(name) 
     
-    def _load_linklist(self,page,page_url_for=my_url,file_url_for=my_url):
-        fl={}
-        abspath = pjoin(self.config("root"),page.meta["dirpath"])
-        fl["breadcrumbs"] = page_to_link( self.breadcrumbs(page.path), page_url_for)
-        if (page.meta.get("has_img",False) ):
-            fl["list_images"] = file_to_link(list_dir_img(abspath), page_url_for)
-        if page.meta["is_index"] or page.meta.get("has_files",False):
-            # List all non *.md files within the directory
-            list_dir_md=partial(list_dir, not_ext=[self.config("EXTENSION"),"~"])
-            fl["list_files"] = file_to_link(list_dir_md(abspath), file_url_for)
-        if page.meta.get("is_index",False):
-            fl["sub_pages"] = page_to_link(self.get_sub_pages(page), page_url_for)
-            fl["sub_index_pages"] = page_to_link(self.get_sub_ipages(page), page_url_for)
-
-        return fl
-    
-    def linklists(self,page,page_url_for=my_url,file_url_for=my_url):
-        #return self._load_linklist(page,page_url_for)
-        return linklist_dict_lists(self._load_linklist(page,page_url_for,file_url_for))

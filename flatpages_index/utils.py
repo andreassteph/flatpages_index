@@ -44,7 +44,7 @@ def page_to_link(pages, url_for_method):
      for p in pages:
           yield LinkElement(title=p.meta.get("title",p.path),
                             url=url_for_method(name=p.path),
-                            desc='/'.join(p.path.split('/')[-2:-1])
+                            desc=p.meta.get("desc",'/'.join(p.path.split('/')[-2:-1]))
           )
 def file_to_link(files, url_for_method):
      "file to url"
