@@ -2,14 +2,14 @@ from flask_flatpages import FlatPages, pygments_style_defs
 import flask_flatpages
 from flask import url_for
 import re
-from utils import path_depth,pjoin2,pjoin,list_dir, page_to_link, file_to_link
+from .utils import path_depth,pjoin2,pjoin,list_dir, page_to_link, file_to_link
 from functools import partial
 from werkzeug.utils import cached_property
 from collections import namedtuple
 
 FileLists=namedtuple("FileLists", ["list_files", "list_images", "sub_pages", "sub_index_pages", "breadcrumbs"])
 
-# List all jpg images within the directory
+# Fuction for list all jpg images within the directory
 list_dir_img=partial(list_dir, ext=["jpg", "jpeg","JPG"])
 
 
@@ -69,18 +69,20 @@ class FlatPagesIndex(FlatPages):
     def get_paths(pages):
         return (p.path for p in pages)
 
+    # creates a directory based on key metadata that can be added to pages
     @cached_property
     def _key_pages(self):
         d={}
         for path in self._pages:
             if self.config("key")is not None:
-                k = d[path].meta.get(self.config("key"),None)
+                k=self.get(path).meta.get(self.config("key"),None)
                 if k is not None:
                     if k in self.key_pages:
                         raise Error("Key: %s is not unique" % k)
                     d[k]=self._pages[path]
  
         return d
+
     def get_by_key(self,k):
         return self._key_pages.get(k,None)
     @cached_property
@@ -156,18 +158,18 @@ class FlatPagesIndex(FlatPages):
         return self.get(name) 
     
     def _load_linklist(self,page,page_url_for=my_url,file_url_for=my_url):
-	fl={}
+        fl={}
         abspath = pjoin(self.config("root"),page.meta["dirpath"])
         fl["breadcrumbs"] = page_to_link( self.breadcrumbs(page.path), page_url_for)
         if (page.meta.get("has_img",False) ):
             fl["list_images"] = file_to_link(list_dir_img(abspath), page_url_for)
-	if page.meta["is_index"] or page.meta.get("has_files",False):
+        if page.meta["is_index"] or page.meta.get("has_files",False):
             # List all non *.md files within the directory
             list_dir_md=partial(list_dir, not_ext=[self.config("EXTENSION"),"~"])
-	    fl["list_files"] = file_to_link(list_dir_md(abspath), file_url_for)
-	if page.meta.get("is_index",False):
-	    fl["sub_pages"] = page_to_link(self.get_sub_pages(page), page_url_for)
-	    fl["sub_index_pages"] = page_to_link(self.get_sub_ipages(page), page_url_for)
+            fl["list_files"] = file_to_link(list_dir_md(abspath), file_url_for)
+        if page.meta.get("is_index",False):
+            fl["sub_pages"] = page_to_link(self.get_sub_pages(page), page_url_for)
+            fl["sub_index_pages"] = page_to_link(self.get_sub_ipages(page), page_url_for)
 
         return fl
     

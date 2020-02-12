@@ -8,17 +8,21 @@ from os.path import isfile, abspath
 from collections import namedtuple
 LinkElement=namedtuple("LinkElement", ["title", "url","desc"])
 
+# Path join2 pjoin2 joins paths in an array with an Slash
+# ["asdf/sdf", "sdf"]-> "asdf/sdf/sdf"
 def pjoin2 (pth):
      if (not type(pth) is list):
           raise AttributeError("path should be a list") 
-     pth=filter(lambda s: len(s.strip())>0, pth)
+     pth=list(filter(lambda s: len(s.strip())>0, pth))
      if len(pth)==0:
           raise AttributeError("List for pjoin2 can't be empty")
      return u'/'.join(pth) or u''
 
+# shortcut for pjoin2 for 2 strings
 def pjoin (rt,pth):
     return pjoin2([rt,pth])
 
+# lists files in a directory with extension filter inclusion or exclusion
 def list_dir(mypath,ext=None, not_ext=None):
     return (f for f in os.listdir(mypath)
             if os.path.isfile(os.path.join(mypath, f))
