@@ -1,3 +1,3 @@
 from .flatpages import FlatPagesIndex
-from .flatpages import FileLists
+from .flatpages import  Links
 from .utils import LinkElement

@@ -1,6 +1,6 @@
 from setuptools import setup
 setup( name='flatpages_index',
-       version='0.2',
+       version='0.3',
        description='A small extension for flask_flatpages',
        url='',
        author='Andreas Stephanides',
