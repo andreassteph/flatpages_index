@@ -11,9 +11,18 @@ from collections import namedtuple
 from collections.abc import Mapping
 from . import flatpages
 
+
+def create_link_for(links, pages):
+    return []
+
+
+
+
+
+
 class Links(Mapping):
     endpoint="index"
-    url=lambda s: url_for(s.endpoint)
+    url=lambda s,x: url_for(s.endpoint,name=x)
     file_url=None
     thumb_url=None
     image_url=None
@@ -38,10 +47,15 @@ class Links(Mapping):
             raise TypeError( "Link path must be a string i.e. a path")
 
         path_elements = path.split('/')
-        elements2 = ['']
+        elements2 = [self.fpi.get("index")]
         if len(path_elements)>=2:
             for i in range(1,len(path_elements)):
-                elements2.append((pjoin2(path_elements[0:i])+u'/'))
+                p=pjoin2(path_elements[0:i])
+                pg=self.fpi.get(p)
+                if pg is None:
+                    raise ValueError("For path %s no Page found"% p)
+                elements2.append(pg)
+
         return elements2
 
     def abspath(self):
@@ -80,15 +94,16 @@ class Links(Mapping):
     @cached_property
     def _subpages(self):
         return self._get_subpages()
+
     @cached_property
     def _subindexpages(self):
         return self._get_subpages(True)
     
     def getsubpages(self, is_index= False):
-        return [LinkElement(n["title"], self.url(n.path), str(n)) for n in self._subpages]
+        return [self.LinkElement_frompage(n) for n in self._subpages]
                 
     def getsubindexpages(self):
-        return [LinkElement(n["title"], url_for(self.endpoint,name=n.path), str(n)) for n in self._subindexpages]
+        return [self.LinkElement_frompage(n) for n in self._subindexpages]
 
         
     def todict(self):
@@ -123,7 +138,7 @@ class Links(Mapping):
         if not isinstance(self.fpi, flatpages.FlatPagesIndex):
             raise TypeError("Must set a FlatPageIndex for links element")
         if key == "breadcrumbs":
-            return [LinkElement(self.fpi[i+"index"]["title"],self.url(i),self.fpi[i+"index"]["desc"]) for i in  self._get_breadcrumbs]
+            return [self.LinkElement_frompage(i) for i in  self._get_breadcrumbs]
         if key =="files":
             return self.getfiles()
         if key =="subpages":
@@ -139,3 +154,9 @@ class Links(Mapping):
         return iter(["images","breadcrumbs","files","subpages","subindexpages"])
     def __len__(self):
         return 5
+
+    def LinkElement_frompage(self,p):
+            
+        if p.get("image",None) is None:
+            return LinkElement(p["title"],self.url(p["url_path"]),p["desc"], None,None,p.get("date", None))
+        return    LinkElement(p["title"],self.url(p["url_path"]),p["desc"], self.thumb_url( pjoin(p["dirpath"],p.get("image", None))), pjoin(p["dirpath"],p.get("image", None)),p.get("date", None))

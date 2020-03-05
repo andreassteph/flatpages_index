@@ -14,11 +14,22 @@ from flask_flatpages.flatpages import Page
 
 
 class Page(Page,Mapping):
+    page_defaults={}
     def __init__(self, *args, **kwargs):
+        print(args[0])
+        is_index = (args[0].split('/')[-1]=='index')
+        self.defaults={}
+        self.defaults["is_index"]=is_index
+        #if is_index:
+        #    args=("/".join(args[0].split('/')[0:-1]),*args[1:])
+
         super().__init__(*args, **kwargs)
         self.links=Links(self)
-        self.defaults=self.page_defaults()
-        
+        if self["is_index"]:
+            self["url_path"]="/".join(self.path.split('/')[0:-1])
+        else:
+            self["url_path"]=self.path
+            
     def is_subpage(self,root,page_root=""):
         return (self.path.startswith(root["dirpath"]) and  # is a subpage
                 path_depth(self.path)<path_depth(root["dirpath"])+2 and   # only one level 
@@ -32,28 +43,30 @@ class Page(Page,Mapping):
             return self.html
         if key=="links":
             return self.links.todict()
-        return self.meta.get(key, self.defaults[key])
+        if key in self.meta:
+            return self.meta[key]
+        return self.defaults[key]
     def __iter__(self):
-        return iter(self.asdict())
+        return iter(self._keys())
     def __len__(self):
         return len(self.meta)+len(self.defaults)+2
 
     def asdict(self):
         return {**self.meta,**self.defaults,"html": self.html,"links": self.links.todict()}
 
-    def page_defaults(self, dirpath="."):
-        defaults={}
-        is_index = (self.path.split('/')[-1]=='index')
-        defaults["is_index"]=is_index
+    def _keys(self):
+        return [*self.meta.keys(), *self.defaults.keys(), "html", "links"]
+    def set_page_defaults(self, dirpath="."):
+        defaults= self.__class__.page_defaults
         dirpath='/'.join(self.path.split('/')[0:-1]) # remove index from path
         defaults["dirpath"]=dirpath
-        if is_index:
+        if self["is_index"]:
             defaults["title"]=self.meta.get("title", dirpath.split('/')[-1])
             if defaults["title"]=="":
                 defaults["title"]="Index"
         else:
             defaults["title"]=self.meta.get("title", self.path.split('/')[-1])
-        defaults["template"]=self.meta.get("template", FlatPagesIndex.default_template)
+        defaults["template"]=self.meta.get("template", self.fpi.default_template)
         defaults["depth"]=path_depth(self.path)
         defaults["path"]=self.path
         defaults["desc"]=""
@@ -71,15 +84,13 @@ flask_flatpages.flatpages.Page=Page
 
 
 class FlatPagesIndex(FlatPages):
-    default_template="page.html"
+
 
     def __init__(self,app=None,name=None):
         self.key_pages={}
-
-
         super(FlatPagesIndex, self).__init__(app=app, name=name)
-
-        app.config["FLATPAGES_IMAGE_EXTENSIONS"]=["jpg", "jpeg", "JPG"]
+        self.default_template=app.config.get("FLATPAGES_DEFAULT_TEMPLATE","page.html")
+        app.config["FLATPAGES_IMAGE_EXTENSIONS"]=app.config.get("FLATPAGES_IMAGE_EXTENSIONS",["jpg", "jpeg", "JPG"])
     # gets flatpages for an array of paths
     def get_pages(self, paths):
         "get pages for a list of paths"
@@ -87,7 +98,12 @@ class FlatPagesIndex(FlatPages):
             raise AttributeError("paths for get_pages can't be None")
         return (self.get(p) for p in paths)
         
-
+    def _parse(self, content, path):
+        p=super()._parse( content, path)
+        p.asdf="sdf"
+        p.fpi=self
+        p.defaults.update(p.set_page_defaults())
+        return p
     # creates a directory based on key metadata that can be added to pages
     @cached_property
     def _key_pages(self):
@@ -127,6 +143,7 @@ class FlatPagesIndex(FlatPages):
         
     # load a page from a path information
     def get(self,path):
+        print("Get : %s" % path)
         if path == '': path='index'
         page = super(self.__class__,self).get(path) # try to load path
         if page ==None:

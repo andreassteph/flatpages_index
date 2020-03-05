@@ -6,7 +6,7 @@ import re
 from os.path import isfile, abspath
 
 from collections import namedtuple
-LinkElement=namedtuple("LinkElement", ["title", "url","desc"])
+LinkElement=namedtuple("LinkElement", ["title", "url","desc", "thumb_url","image", "date"])
 ImageLinkElement=namedtuple("LinkElement", ["title", "url","desc","thumb_url"])
 
 # Path join2 pjoin2 joins paths in an array with an Slash
