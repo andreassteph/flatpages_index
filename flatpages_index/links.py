@@ -7,10 +7,11 @@ from flask import url_for
 from .utils import list_dir, pjoin, pjoin2, LinkElement, ImageLinkElement
 from functools import partial
 from werkzeug.utils import cached_property
+from cached_property import cached_property_with_ttl
 from collections import namedtuple
 from collections.abc import Mapping
 from . import flatpages
-
+from datetime import datetime
 
 def create_link_for(links, pages):
     return []
@@ -61,7 +62,7 @@ class Links(Mapping):
     def abspath(self):
         return pjoin(self.fpi.config("root"),self.page["dirpath"])
     
-    @cached_property
+    @cached_property_with_ttl(5)
     def _getfiles(self):
         """ Load all files in dirpath
         """
@@ -70,7 +71,7 @@ class Links(Mapping):
             return [pjoin(self.page["dirpath"],f) for f in fn]
         
         return  add_dirpath(list_dir_md(self.abspath()))
-    @cached_property
+    @cached_property_with_ttl(5)
     def _getimages(self):
         list_dir_jpg=partial(list_dir, ext=self.fpi.config("IMAGE_EXTENSIONS"), not_ext=["~"])
         def add_dirpath(fn):
@@ -85,17 +86,29 @@ class Links(Mapping):
         return [ImageLinkElement(n, self.image_url(n), str(n),self.thumb_url(n)) for n in self._getimages]
     
     def _get_subpages(self, is_index=False):
-        l=[]
+        l1=[]
+        l2=[]
         for n in self.fpi.get_sub_pages(self.page):
             if is_index is None or n["is_index"]==is_index:
-                l.append(n)
-        return l
+                if not n.get("date",None) is None:
+                    l1.append(n)
+                else:
+                    l2.append(n)
+                
+        def sort_key_date(p):
+            return datetime.strptime(p.get("date",0), '%d.%m.%Y')
+        def sort_key_title(p):
+            return p.get("title","ZZZZZZZZZ")
+        
+        l1.sort(key=sort_key_date, reverse=True)
+        l2.sort(key=sort_key_title)
+        return l1+l2
 
-    @cached_property
+    @cached_property_with_ttl(5)
     def _subpages(self):
         return self._get_subpages()
 
-    @cached_property
+    @cached_property_with_ttl(5)
     def _subindexpages(self):
         return self._get_subpages(True)
     

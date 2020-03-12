@@ -11,7 +11,7 @@ from .links import Links
 from .utils import path_depth, pjoin
 from flask_flatpages.flatpages import Page
 #Page("asdf","asdf: SAdf","asdf",lambda x: x)
-
+from datetime import datetime
 
 class Page(Page,Mapping):
     page_defaults={}
@@ -29,6 +29,8 @@ class Page(Page,Mapping):
             self["url_path"]="/".join(self.path.split('/')[0:-1])
         else:
             self["url_path"]=self.path
+        if not self.get("date",None) is None:
+            self.meta["date"] = datetime.strptime(self["date"],'%d.%m.%Y').strftime('%d.%m.%Y')
             
     def is_subpage(self,root,page_root=""):
         return (self.path.startswith(root["dirpath"]) and  # is a subpage

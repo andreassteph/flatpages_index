@@ -7,7 +7,7 @@ setup( name='flatpages_index',
        author_email='st-andreas@gmx.at',
        packages=['flatpages_index'],
        install_requires=[
-           'flask_flatpages',
+           'flask_flatpages','cached_property'
        ],
        test_suite='nose.collector',
        tests_require=['nose','mock'],
