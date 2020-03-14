@@ -11,7 +11,7 @@ from .links import Links
 from .utils import path_depth, pjoin
 from flask_flatpages.flatpages import Page
 #Page("asdf","asdf: SAdf","asdf",lambda x: x)
-from datetime import datetime
+from datetime import datetime,date
 from dateutil import parser
 
 class Page(Page,Mapping):
@@ -31,10 +31,12 @@ class Page(Page,Mapping):
         else:
             self["url_path"]=self.path
         if not self.get("date",None) is None:
-            if (self["date"]) is str:
+            if type(self["date"]) is str:
                 self.meta["date"] = parser.parse(self["date"]).strftime('%d.%m.%Y')
+            elif isinstance((self["date"]), date) or isinstance(self["date"], datetime):
+                self.meta["date"] =datetime.strftime(self["date"],'%d.%m.%Y')                
             else:
-                self.meta["date"] =self["date"].strftime('%d.%m.%Y')                
+                raise TypeError("date has unexpected type: %s" % type(self["date"]))
             
     def is_subpage(self,root,page_root=""):
         return (self.path.startswith(root["dirpath"]) and  # is a subpage
