@@ -31,10 +31,10 @@ class Page(Page,Mapping):
         else:
             self["url_path"]=self.path
         if not self.get("date",None) is None:
-            if (self["date"]) is datetime.date:
-                self.meta["date"] =self["date"].strftime('%d.%m.%Y')
-            else:
+            if (self["date"]) is str:
                 self.meta["date"] = parser.parse(self["date"]).strftime('%d.%m.%Y')
+            else:
+                self.meta["date"] =self["date"].strftime('%d.%m.%Y')                
             
     def is_subpage(self,root,page_root=""):
         return (self.path.startswith(root["dirpath"]) and  # is a subpage
