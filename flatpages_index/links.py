@@ -4,14 +4,15 @@ This class is a mapping and intended to be used e.g.
 """
 from flask import url_for
 #from .utils import path_depth,pjoin2,pjoin,list_dir, page_to_link, file_to_link, LinkElement, ImageLinkElement
-from .utils import list_dir, pjoin, pjoin2, LinkElement, ImageLinkElement
+from datetime import datetime
 from functools import partial
 from werkzeug.utils import cached_property
 from cached_property import cached_property_with_ttl
 from collections import namedtuple
 from collections.abc import Mapping
 from . import flatpages
-from datetime import datetime
+from .utils import list_dir, pjoin, pjoin2, LinkElement, ImageLinkElement
+
 
 def create_link_for(links, pages):
     return []
@@ -20,13 +21,11 @@ def create_link_for(links, pages):
 
 
 
-
 class Links(Mapping):
-    endpoint="index"
-    url=lambda s,x: url_for(s.endpoint,name=x)
-    file_url=None
-    thumb_url=None
-    image_url=None
+    url=lambda self,x: x
+    file_url=lambda self,x: self.url(x)
+    thumb_url=lambda self,x: self.url(x)
+    image_url=lambda self,x: self.url(x)
     """
     This class should be smart about loading relative links to a page.
     1. Breadcrumbs
@@ -71,6 +70,7 @@ class Links(Mapping):
             return [pjoin(self.page["dirpath"],f) for f in fn]
         
         return  add_dirpath(list_dir_md(self.abspath()))
+
     @cached_property_with_ttl(5)
     def _getimages(self):
         list_dir_jpg=partial(list_dir, ext=self.fpi.config("IMAGE_EXTENSIONS"), not_ext=["~"])
@@ -80,11 +80,7 @@ class Links(Mapping):
         return  add_dirpath(list_dir_jpg(self.abspath()))
 
 
-    def getfiles(self):
-        return [LinkElement(n, self.file_url(n), str(n)) for n in self._getfiles]
-    def getimages(self):
-        return [ImageLinkElement(n, self.image_url(n), str(n),self.thumb_url(n)) for n in self._getimages]
-    
+ 
     def _get_subpages(self, is_index=False):
         l1=[]
         l2=[]
@@ -112,56 +108,41 @@ class Links(Mapping):
     def _subindexpages(self):
         return self._get_subpages(True)
     
-    def getsubpages(self, is_index= False):
-        return [self.LinkElement_frompage(n) for n in self._subpages]
-                
-    def getsubindexpages(self):
-        return [self.LinkElement_frompage(n) for n in self._subindexpages]
-
-        
+       
     def todict(self):
         return dict([(i,list(self[i])) for i in self])
 
  
     def __init__(self, page, endpoint=None,fpi=None):
         self.page=page
-        self.endpoint = endpoint or self.__class__.endpoint
         self.fpi= fpi
 
-        fu=lambda s,x: url_for(s.endpoint, name=x)
         
         self.url=self.__class__.url.__get__(self)
-        if self.__class__.file_url is None:
-            self.file_url=self.url
-        else:
-            self.file_url=self.__class__.file_url.__get__(self)
-        if self.__class__.image_url is None:
-            self.image_url=self.url
-        else:
-            self.image_url=self.__class__.image_url.__get__(self)
-
-        if self.__class__.thumb_url is None:
-            self.thumb_url=self.image_url
-        else:
-            self.thumb_url=self.__class__.thumb_url.__get__(self)
+        self.file_url=self.__class__.file_url.__get__(self)
+        self.image_url=self.__class__.image_url.__get__(self)
+        self.thumb_url=self.__class__.thumb_url.__get__(self)
 
     
-        
+    def __getattr__(self,item):
+        if item in self:
+            return self.__getitem__(item)    
+        #raise AttributeError()
     def __getitem__(self,key):
         if not isinstance(self.fpi, flatpages.FlatPagesIndex):
             raise TypeError("Must set a FlatPageIndex for links element")
         if key == "breadcrumbs":
             return [self.LinkElement_frompage(i) for i in  self._get_breadcrumbs]
         if key =="files":
-            return self.getfiles()
+            return [LinkElement(n, self.file_url(n), str(n),"","","") for n in self._getfiles]
         if key =="subpages":
-            return self.getsubpages()
+            return [self.LinkElement_frompage(n) for n in self._subpages]
         if key == "subindexpages":
-            return self.getsubindexpages()
+            return [self.LinkElement_frompage(n) for n in self._subindexpages]
         if key == "images":
-            if self.page["has_img"]:
-                return self.getimages()
-            return ""
+            #if "has_img" in self.page and self.page["has_img"]:
+            return self.getimages()
+            #return ""
         return []
     def __iter__(self):
         return iter(["images","breadcrumbs","files","subpages","subindexpages"])
@@ -169,7 +150,23 @@ class Links(Mapping):
         return 5
 
     def LinkElement_frompage(self,p):
-            
-        if p.get("image",None) is None:
+        img = p.get("image",None)
+        if img:
+            img=self.thumb_url(pjoin(p["dirpath"],p.get("image", None)))
+        if img is None and len(p.links["images"])>0:
+            img = p.links["images"][0].thumb_url
+        if img is None:
             return LinkElement(p["title"],self.url(p["url_path"]),p["desc"], None,None,p.get("date", None))
-        return    LinkElement(p["title"],self.url(p["url_path"]),p["desc"], self.thumb_url( pjoin(p["dirpath"],p.get("image", None))), pjoin(p["dirpath"],p.get("image", None)),p.get("date", None))
+        return    LinkElement(p["title"],self.url(p["url_path"]),p["desc"], img, img,p.get("date", None))
+    #
+    #depricated 
+    def getfiles(self):
+        return [LinkElement(n, self.file_url(n), str(n),"","","") for n in self._getfiles]
+    def getimages(self):
+        return [ImageLinkElement(n, self.image_url(n), str(n),self.thumb_url(n)) for n in self._getimages]
+    def getsubpages(self, is_index= False):
+        return [self.LinkElement_frompage(n) for n in self._subpages]                
+    def getsubindexpages(self):
+        return [self.LinkElement_frompage(n) for n in self._subindexpages]
+
+    

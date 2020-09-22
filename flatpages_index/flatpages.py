@@ -15,12 +15,13 @@ from datetime import datetime,date
 from dateutil import parser
 
 class Page(Page,Mapping):
-    page_defaults={}
+    page_defaults={"has_img": False}
     def __init__(self, *args, **kwargs):
         print(args[0])
         is_index = (args[0].split('/')[-1]=='index')
-        self.defaults={}
+        self.defaults= {}
         self.defaults["is_index"]=is_index
+        #self.defaults["has_img"]=False
         #if is_index:
         #    args=("/".join(args[0].split('/')[0:-1]),*args[1:])
 
@@ -30,7 +31,7 @@ class Page(Page,Mapping):
             self["url_path"]="/".join(self.path.split('/')[0:-1])
         else:
             self["url_path"]=self.path
-        if not self.get("date",None) is None:
+        if self.get("date",None):
             if type(self["date"]) is str:
                 self.meta["date"] = parser.parse(self["date"]).strftime('%d.%m.%Y')
             elif isinstance((self["date"]), date) or isinstance(self["date"], datetime):
@@ -160,3 +161,8 @@ class FlatPagesIndex(FlatPages):
 
         return  page
     
+    def cfg(self, name, value):
+        if name in ["url", "thumb_url", "file_url", "image_url"]:
+            setattr(Links,name,value)
+        else:
+            raise AttributeError("%s is an unknown config attriubte" % name)
